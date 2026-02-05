@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ace 1.5 Vibe Radio</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div>
+          <h1>Ace 1.5 Vibe Radio</h1>
+          <p class="subtitle">GPU-powered infinite music, tuned to your prompt.</p>
+        </div>
+        <div class="status" id="status">Idle</div>
+      </header>
+
+      <main>
+        <section class="controls">
+          <label class="field">
+            <span>Vibe prompt</span>
+            <input
+              id="prompt"
+              type="text"
+              placeholder="Neon synthwave with dreamy vocals"
+            />
+          </label>
+          <label class="field small">
+            <span>Buffer target</span>
+            <input id="bufferTarget" type="number" min="1" max="6" value="2" />
+          </label>
+          <div class="buttons">
+            <button id="startBtn" class="primary">Start Radio</button>
+            <button id="stopBtn">Stop</button>
+            <button id="skipBtn">Skip</button>
+          </div>
+          <div class="player">
+            <audio id="audio" controls></audio>
+            <div class="player-actions">
+              <button id="playPauseBtn">Play</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="now-playing">
+          <div class="card">
+            <h2 id="trackTitle">No track loaded</h2>
+            <p class="meta" id="trackMeta">Awaiting prompt...</p>
+          </div>
+          <div class="card lyrics">
+            <h3>Lyrics</h3>
+            <pre id="lyrics">---</pre>
+          </div>
+        </section>
+
+        <section class="buffer">
+          <div class="card">
+            <h3>Buffer & Stats</h3>
+            <ul>
+              <li>Buffered tracks: <span id="bufferCount">0</span></li>
+              <li>Target buffer: <span id="bufferTargetDisplay">2</span></li>
+              <li>Prompt: <span id="promptDisplay">None</span></li>
+            </ul>
+            <div class="buffering" id="bufferingIndicator">Buffering…</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
