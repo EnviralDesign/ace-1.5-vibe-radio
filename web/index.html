@@ -1,73 +1,137 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ace 1.5 Vibe Radio</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-  </head>
-  <body>
-    <div class="app">
-      <header>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ace 1.5 Vibe Radio</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo-icon">📡</div>
         <div>
           <h1>Ace 1.5 Vibe Radio</h1>
-          <p class="subtitle">GPU-powered infinite music, tuned to your prompt.</p>
+          <p class="subtitle">Generative Neural Stream</p>
         </div>
-        <div class="status" id="status">Idle</div>
-      </header>
+      </div>
+      <div class="status-badge" id="status">OFFLINE</div>
+    </header>
 
-      <main>
-        <section class="controls">
-          <label class="field">
-            <span>Vibe prompt</span>
-            <input
-              id="prompt"
-              type="text"
-              placeholder="Neon synthwave with dreamy vocals"
-            />
-          </label>
-          <label class="field small">
-            <span>Buffer target</span>
-            <input id="bufferTarget" type="number" min="1" max="6" value="2" />
-          </label>
-          <div class="buttons">
-            <button id="startBtn" class="primary">Start Radio</button>
-            <button id="stopBtn">Stop</button>
-            <button id="skipBtn">Skip</button>
+    <main>
+      <div class="top-row">
+        <!-- Left Column: Controls & Input -->
+        <section class="console-panel">
+          <div class="panel-header">
+            <h2>Signal Parameters</h2>
           </div>
-          <div class="player">
-            <audio id="audio" controls></audio>
-            <div class="player-actions">
-              <button id="playPauseBtn">Play</button>
+
+          <div class="control-group">
+            <label class="field">
+              <span class="label-text">Vibe Prompt</span>
+              <textarea id="prompt" rows="3"
+                placeholder="Describe the sound... e.g., 'Neon synthwave vapor dreams with heavy reverb'"></textarea>
+            </label>
+
+            <label class="field row">
+              <span class="label-text">Buffer Depth</span>
+              <input id="bufferTarget" type="number" min="1" max="5" value="2" />
+            </label>
+
+            <label class="field row">
+              <span class="label-text">Vocal Mode</span>
+              <div class="mode-toggle" role="group" aria-label="Vocal Mode">
+                <button id="modeLyrics" type="button" class="toggle-btn active">Lyrics</button>
+                <button id="modeInstrumental" type="button" class="toggle-btn">Instrumental</button>
+              </div>
+            </label>
+
+            <label class="field row">
+              <span class="label-text">Vocal Language</span>
+              <select id="vocalLanguage"></select>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="startBtn" class="btn primary">Initialize Stream</button>
+            <button id="stopBtn" class="btn secondary">Terminate</button>
+          </div>
+
+          <div class="stats-box">
+            <div class="stat-row">
+              <span>Buffered Tracks</span>
+              <span id="bufferCount" class="mono">0</span>
+            </div>
+            <div class="stat-row">
+              <span>Target</span>
+              <span id="bufferTargetDisplay" class="mono">2</span>
+            </div>
+            <div class="stat-row">
+              <span>Status</span>
+              <span id="connectionStatus" class="mono">Disconnected</span>
             </div>
           </div>
         </section>
 
-        <section class="now-playing">
-          <div class="card">
-            <h2 id="trackTitle">No track loaded</h2>
-            <p class="meta" id="trackMeta">Awaiting prompt...</p>
+        <!-- Right Column: Player & Visuals -->
+        <section class="player-panel">
+          <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+            <div class="track-overlay" id="trackOverlay">
+              <h2 id="trackTitle">Waiting for signal...</h2>
+              <p id="trackMeta" class="meta-tag">---</p>
+            </div>
           </div>
-          <div class="card lyrics">
-            <h3>Lyrics</h3>
-            <pre id="lyrics">---</pre>
+
+          <div class="playback-controls">
+            <div class="progress-container" id="progressContainer">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div class="control-buttons">
+              <button id="playPauseBtn" class="btn round" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" id="playIcon" />
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" id="pauseIcon" style="display:none" />
+                </svg>
+              </button>
+              <button id="skipBtn" class="btn round" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="lyrics-panel">
+            <div class="panel-header">
+              <h3>Neural Lyrics</h3>
+            </div>
+            <div id="lyrics" class="lyrics-content">---</div>
           </div>
         </section>
+      </div>
 
-        <section class="buffer">
-          <div class="card">
-            <h3>Buffer & Stats</h3>
-            <ul>
-              <li>Buffered tracks: <span id="bufferCount">0</span></li>
-              <li>Target buffer: <span id="bufferTargetDisplay">2</span></li>
-              <li>Prompt: <span id="promptDisplay">None</span></li>
-            </ul>
-            <div class="buffering" id="bufferingIndicator">Buffering…</div>
-          </div>
-        </section>
-      </main>
-    </div>
+      <!-- System Logs -->
+      <section class="logs-panel">
+        <div class="panel-header">
+          <h3>System Logs</h3>
+          <button id="clearLogsBtn" class="btn small">Clear</button>
+        </div>
+        <div id="logContainer" class="log-container">
+          <div class="log-entry system">Connecting to satellite link...</div>
+        </div>
+      </section>
 
-    <script src="/static/app.js"></script>
-  </body>
+    </main>
+  </div>
+
+  <!-- Hidden Audio Element -->
+  <audio id="audio" crossorigin="anonymous"></audio>
+  <script src="/static/app.js"></script>
+</body>
+
 </html>

@@ -1,5 +1,7 @@
 # ACE 1.5 Vibe Radio
 
+![as](images/image.png)
+
 A generative music radio station powered by ACE-Step 1.5. This application generates infinite, non-repeating music streams based on text prompts using a locally running DiT (Diffusion Transformer) and 5Hz Language Model.
 
 ## Features
