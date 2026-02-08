@@ -43,7 +43,7 @@ wheels = [
 [[package]]
 name = "ace-1-5-vibe-radio"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "ace-step" },
     { name = "fastapi" },
@@ -105,7 +105,7 @@ requires-dist = [
     { name = "diskcache" },
     { name = "einops", specifier = ">=0.8.1" },
     { name = "fastapi", specifier = ">=0.110.0" },
-    { name = "gradio", specifier = ">=6.5.1" },
+    { name = "gradio", specifier = "==6.2.0" },
     { name = "lightning", specifier = ">=2.0.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.7.5" },
@@ -113,10 +113,11 @@ requires-dist = [
     { name = "mlx-lm", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=0.20.0" },
     { name = "modelscope" },
     { name = "numba", specifier = ">=0.63.1" },
-    { name = "peft", specifier = ">=0.7.0" },
+    { name = "peft", specifier = ">=0.18.0" },
     { name = "scipy", specifier = ">=1.10.1" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tensorboard", specifier = ">=2.0.0" },
+    { name = "tensorboard", specifier = ">=2.20.0" },
     { name = "toml" },
     { name = "torch", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=2.9.1" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = "==2.10.0+cu128", index = "https://download.pytorch.org/whl/cu128" },
@@ -547,7 +548,7 @@ http = [
 
 [[package]]
 name = "gradio"
-version = "6.5.1"
+version = "6.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -569,7 +570,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydub" },
     { name = "python-multipart" },
-    { name = "pytz" },
     { name = "pyyaml" },
     { name = "safehttpx" },
     { name = "semantic-version" },
@@ -579,14 +579,14 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d9/4f/b095b9a9ddc1ba433121f390df0e8a20a3360ffabd43ec13e86d6ce412b4/gradio-6.5.1.tar.gz", hash = "sha256:31223a1699f15072176dbf48a94f08457228a38263bb4c221a0ccea3a639a595", size = 40132899, upload-time = "2026-01-29T16:39:14.195Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/db/487d9732ef2f785359a6566cb5f4c820ad01a2a37f91af2161b71bf96c3a/gradio-6.2.0.tar.gz", hash = "sha256:f4f1d7407d5179ac3917ffb2f40545c6c23146bde4257b0bd5110e7b5e862e5b", size = 37890771, upload-time = "2025-12-19T18:29:38.518Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/72/4f56a920147ce215e2286defc257a613b3b6d8c90cea323758a99ca0f9fa/gradio-6.5.1-py3-none-any.whl", hash = "sha256:5d49ff9691413ca5411189a694de5cbf1b171e2d49bf9f113952ae8a93c7088d", size = 24183125, upload-time = "2026-01-29T16:39:10.908Z" },
+    { url = "https://files.pythonhosted.org/packages/24/c4/4813d4fe00298c55b355b232ca6420827c82939906aff7c396f4ac8d635c/gradio-6.2.0-py3-none-any.whl", hash = "sha256:65bcd9e26e77e9be8d688abdb18351d3f537ed16418c4274a513f280894317ed", size = 22985535, upload-time = "2025-12-19T18:29:34.922Z" },
 ]
 
 [[package]]
 name = "gradio-client"
-version = "2.0.3"
+version = "2.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
@@ -595,9 +595,9 @@ dependencies = [
     { name = "packaging" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/75/5c971cc80a6a477f038c66869178684c5010fd61b232277c120c61588d74/gradio_client-2.0.3.tar.gz", hash = "sha256:8f1cec02dccaf64ac0285ed60479a2b0db3778dfe74c85a36d7ec9a95daeccc4", size = 55027, upload-time = "2026-01-10T00:03:56.446Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/37/2bab45f9e218d5411e4e83c6d99602a1aba145b7872587dbdc8954877259/gradio_client-2.0.2.tar.gz", hash = "sha256:9800a3cead74881ffb3b0d6b731ea4a8e3c52d2ba63d5ab350e30db53566d4bf", size = 54935, upload-time = "2025-12-19T18:29:49.355Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/11/758b76a14e1783549c71828b36e81c997b99683bc4ec14b28417dff3348f/gradio_client-2.0.3-py3-none-any.whl", hash = "sha256:bcc88da74e3a387bcd41535578abbafe2091bcf4715c9542111804741b9e50b0", size = 55669, upload-time = "2026-01-10T00:03:54.262Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/a2/a3497afea984202f481de3464b3bfbcb3de1cd83cbbf3714933d40dd7106/gradio_client-2.0.2-py3-none-any.whl", hash = "sha256:46a7f63eaa7758fe2e38be7f78f26a1fff48a7b526ebdd87141b050e08556622", size = 55566, upload-time = "2025-12-19T18:29:47.508Z" },
 ]
 
 [[package]]
@@ -1241,23 +1241,23 @@ wheels = [
 
 [[package]]
 name = "pandas"
-version = "3.0.0"
+version = "2.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "python-dateutil" },
-    { name = "tzdata", marker = "sys_platform == 'emscripten' or sys_platform == 'win32'" },
+    { name = "pytz" },
+    { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/de/da/b1dc0481ab8d55d0f46e343cfe67d4551a0e14fcee52bd38ca1bd73258d8/pandas-3.0.0.tar.gz", hash = "sha256:0facf7e87d38f721f0af46fe70d97373a37701b1c09f7ed7aeeb292ade5c050f", size = 4633005, upload-time = "2026-01-21T15:52:04.726Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/01/d40b85317f86cf08d853a4f495195c73815fdf205eef3993821720274518/pandas-2.3.3.tar.gz", hash = "sha256:e05e1af93b977f7eafa636d043f9f94c7ee3ac81af99c13508215942e64c993b", size = 4495223, upload-time = "2025-09-29T23:34:51.853Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/1e/b184654a856e75e975a6ee95d6577b51c271cd92cb2b020c9378f53e0032/pandas-3.0.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:d64ce01eb9cdca96a15266aa679ae50212ec52757c79204dbc7701a222401850", size = 10313247, upload-time = "2026-01-21T15:50:15.775Z" },
-    { url = "https://files.pythonhosted.org/packages/dd/5e/e04a547ad0f0183bf151fd7c7a477468e3b85ff2ad231c566389e6cc9587/pandas-3.0.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:613e13426069793aa1ec53bdcc3b86e8d32071daea138bbcf4fa959c9cdaa2e2", size = 9913131, upload-time = "2026-01-21T15:50:18.611Z" },
-    { url = "https://files.pythonhosted.org/packages/a2/93/bb77bfa9fc2aba9f7204db807d5d3fb69832ed2854c60ba91b4c65ba9219/pandas-3.0.0-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0192fee1f1a8e743b464a6607858ee4b071deb0b118eb143d71c2a1d170996d5", size = 10741925, upload-time = "2026-01-21T15:50:21.058Z" },
-    { url = "https://files.pythonhosted.org/packages/62/fb/89319812eb1d714bfc04b7f177895caeba8ab4a37ef6712db75ed786e2e0/pandas-3.0.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f0b853319dec8d5e0c8b875374c078ef17f2269986a78168d9bd57e49bf650ae", size = 11245979, upload-time = "2026-01-21T15:50:23.413Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/63/684120486f541fc88da3862ed31165b3b3e12b6a1c7b93be4597bc84e26c/pandas-3.0.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:707a9a877a876c326ae2cb640fbdc4ef63b0a7b9e2ef55c6df9942dcee8e2af9", size = 11756337, upload-time = "2026-01-21T15:50:25.932Z" },
-    { url = "https://files.pythonhosted.org/packages/39/92/7eb0ad232312b59aec61550c3c81ad0743898d10af5df7f80bc5e5065416/pandas-3.0.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:afd0aa3d0b5cda6e0b8ffc10dbcca3b09ef3cbcd3fe2b27364f85fdc04e1989d", size = 12325517, upload-time = "2026-01-21T15:50:27.952Z" },
-    { url = "https://files.pythonhosted.org/packages/51/27/bf9436dd0a4fc3130acec0828951c7ef96a0631969613a9a35744baf27f6/pandas-3.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:113b4cca2614ff7e5b9fee9b6f066618fe73c5a83e99d721ffc41217b2bf57dd", size = 9881576, upload-time = "2026-01-21T15:50:30.149Z" },
-    { url = "https://files.pythonhosted.org/packages/e7/2b/c618b871fce0159fd107516336e82891b404e3f340821853c2fc28c7830f/pandas-3.0.0-cp311-cp311-win_arm64.whl", hash = "sha256:c14837eba8e99a8da1527c0280bba29b0eb842f64aa94982c5e21227966e164b", size = 9140807, upload-time = "2026-01-21T15:50:32.308Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/fa/7ac648108144a095b4fb6aa3de1954689f7af60a14cf25583f4960ecb878/pandas-2.3.3-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:602b8615ebcc4a0c1751e71840428ddebeb142ec02c786e8ad6b1ce3c8dec523", size = 11578790, upload-time = "2025-09-29T23:18:30.065Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/35/74442388c6cf008882d4d4bdfc4109be87e9b8b7ccd097ad1e7f006e2e95/pandas-2.3.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:8fe25fc7b623b0ef6b5009149627e34d2a4657e880948ec3c840e9402e5c1b45", size = 10833831, upload-time = "2025-09-29T23:38:56.071Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/e4/de154cbfeee13383ad58d23017da99390b91d73f8c11856f2095e813201b/pandas-2.3.3-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b468d3dad6ff947df92dcb32ede5b7bd41a9b3cceef0a30ed925f6d01fb8fa66", size = 12199267, upload-time = "2025-09-29T23:18:41.627Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/c9/63f8d545568d9ab91476b1818b4741f521646cbdd151c6efebf40d6de6f7/pandas-2.3.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b98560e98cb334799c0b07ca7967ac361a47326e9b4e5a7dfb5ab2b1c9d35a1b", size = 12789281, upload-time = "2025-09-29T23:18:56.834Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/00/a5ac8c7a0e67fd1a6059e40aa08fa1c52cc00709077d2300e210c3ce0322/pandas-2.3.3-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:1d37b5848ba49824e5c30bedb9c830ab9b7751fd049bc7914533e01c65f79791", size = 13240453, upload-time = "2025-09-29T23:19:09.247Z" },
+    { url = "https://files.pythonhosted.org/packages/27/4d/5c23a5bc7bd209231618dd9e606ce076272c9bc4f12023a70e03a86b4067/pandas-2.3.3-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:db4301b2d1f926ae677a751eb2bd0e8c5f5319c9cb3f88b0becbbb0b07b34151", size = 13890361, upload-time = "2025-09-29T23:19:25.342Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/59/712db1d7040520de7a4965df15b774348980e6df45c129b8c64d0dbe74ef/pandas-2.3.3-cp311-cp311-win_amd64.whl", hash = "sha256:f086f6fe114e19d92014a1966f43a3e62285109afe874f067f5abbdcbb10e59c", size = 11348702, upload-time = "2025-09-29T23:19:38.296Z" },
 ]
 
 [[package]]

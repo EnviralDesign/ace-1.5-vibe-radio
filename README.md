@@ -36,10 +36,23 @@ This repo wraps upstream ACE-Step via git submodule at `vendor/ace-step` so upst
 
 ## Usage
 
+Initialize or update upstream ACE-Step (optional, separate step):
+
+```bash
+uv run ace-radio-upstream
+```
+
 Start the server:
 
 ```bash
-uv run uvicorn app.main:app --host 0.0.0.0 --port 6109
+uv run ace-radio
+```
+
+Optional flags for server command:
+
+```bash
+uv run ace-radio --host 0.0.0.0 --port 6109
+uv run ace-radio --reload
 ```
 
 *Note: The first run will automatically download the necessary model weights (approx. 10GB+), which may take some time.*

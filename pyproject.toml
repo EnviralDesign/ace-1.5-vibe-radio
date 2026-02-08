@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ace-1.5-vibe-radio"
 version = "0.1.0"
@@ -9,6 +13,13 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "pydantic>=2.0.0",
 ]
+
+[project.scripts]
+ace-radio = "app.cli:serve_main"
+ace-radio-upstream = "app.cli:update_upstream_main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.uv.sources]
 ace-step = { path = "vendor/ace-step" }
