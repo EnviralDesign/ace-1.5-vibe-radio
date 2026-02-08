@@ -407,6 +407,8 @@ class RadioState:
     generation_task: Optional[asyncio.Task] = None
     initialization_task: Optional[asyncio.Task] = None
     runtime_config: Dict[str, Any] = field(default_factory=dict)
+    cached_sample_key: Optional[str] = None
+    cached_sample: Optional[Dict[str, Any]] = None
 
 state = RadioState()
 state_lock = asyncio.Lock()
@@ -443,6 +445,7 @@ class RuntimeConfigRequest(BaseModel):
     guidance_scale: Optional[float] = Field(default=None, ge=0.0, le=30.0)
     duration_seconds: Optional[float] = Field(default=None, ge=10.0, le=600.0)
     thinking: Optional[bool] = None
+    reuse_lm_sample: Optional[bool] = None
     restart_engine: bool = True
 
 
@@ -469,7 +472,10 @@ def _normalize_runtime_config(config: Dict[str, Any]) -> Dict[str, Any]:
         lm_backend = "pt"
     normalized["lm_backend"] = lm_backend
 
-    normalized["offload_to_cpu"] = bool(normalized.get("offload_to_cpu", False))
+    # Performance-first default:
+    # - Keep auxiliary/LLM offload enabled for memory headroom
+    # - Keep DiT resident on GPU for faster per-track generation
+    normalized["offload_to_cpu"] = bool(normalized.get("offload_to_cpu", True))
     normalized["offload_dit_to_cpu"] = bool(normalized.get("offload_dit_to_cpu", False))
 
     try:
@@ -491,6 +497,7 @@ def _normalize_runtime_config(config: Dict[str, Any]) -> Dict[str, Any]:
     normalized["duration_seconds"] = max(10.0, min(600.0, duration_seconds))
 
     normalized["thinking"] = bool(normalized.get("thinking", True))
+    normalized["reuse_lm_sample"] = bool(normalized.get("reuse_lm_sample", False))
     return normalized
 
 
@@ -507,12 +514,13 @@ def _build_runtime_config_from_env() -> Dict[str, Any]:
         config["lm_model_path"] = env_lm
     if env_backend:
         config["lm_backend"] = env_backend
-    config["offload_to_cpu"] = str(os.environ.get("ACE_RADIO_OFFLOAD_TO_CPU", "0")).lower() in {"1", "true", "yes"}
+    config["offload_to_cpu"] = str(os.environ.get("ACE_RADIO_OFFLOAD_TO_CPU", "1")).lower() in {"1", "true", "yes"}
     config["offload_dit_to_cpu"] = str(os.environ.get("ACE_RADIO_OFFLOAD_DIT_TO_CPU", "0")).lower() in {"1", "true", "yes"}
     config["inference_steps"] = int(os.environ.get("ACE_RADIO_INFERENCE_STEPS", config["inference_steps"]))
     config["guidance_scale"] = float(os.environ.get("ACE_RADIO_GUIDANCE_SCALE", config["guidance_scale"]))
     config["duration_seconds"] = float(os.environ.get("ACE_RADIO_DURATION_SECONDS", config["duration_seconds"]))
     config["thinking"] = str(os.environ.get("ACE_RADIO_THINKING", "1")).lower() not in {"0", "false", "no"}
+    config["reuse_lm_sample"] = str(os.environ.get("ACE_RADIO_REUSE_LM_SAMPLE", "0")).lower() in {"1", "true", "yes"}
     return _normalize_runtime_config(config)
 
 
@@ -686,8 +694,26 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
         selected_language = "unknown"
     user_language = None if selected_language in ("unknown", "auto") else selected_language
 
+    async with state_lock:
+        runtime_cfg = dict(state.runtime_config)
+    reuse_lm_sample = bool(runtime_cfg.get("reuse_lm_sample", False))
+    sample_cache_key = f"{prompt}|{mode}|{selected_language}"
+
+    if reuse_lm_sample:
+        async with state_lock:
+            if state.cached_sample_key == sample_cache_key and state.cached_sample:
+                cached = dict(state.cached_sample)
+                sample_used = True
+                sample_caption = cached.get("caption") or prompt
+                sample_lyrics = cached.get("lyrics") or ""
+                sample_bpm = cached.get("bpm")
+                sample_keyscale = cached.get("keyscale") or ""
+                sample_timesignature = cached.get("timesignature") or ""
+                sample_language = cached.get("language") or "unknown"
+                ui_log("LM sample reused • stream cache")
+
     ext_cfg = _get_external_llm_config()
-    if ext_cfg:
+    if not sample_used and ext_cfg:
         try:
             sample_start = time.perf_counter()
             ext_sample = _external_llm_create_sample(
@@ -736,13 +762,23 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
         except Exception as e:
             logger.warning(f"create_sample error: {e}")
 
+    if reuse_lm_sample and sample_used:
+        async with state_lock:
+            state.cached_sample_key = sample_cache_key
+            state.cached_sample = {
+                "caption": sample_caption,
+                "lyrics": sample_lyrics,
+                "bpm": sample_bpm,
+                "keyscale": sample_keyscale,
+                "timesignature": sample_timesignature,
+                "language": sample_language,
+            }
+
     # Configure generation
     if mode == "instrumental" and not sample_lyrics:
         sample_lyrics = "[Instrumental]"
 
     effective_language = user_language or sample_language or "unknown"
-    async with state_lock:
-        runtime_cfg = dict(state.runtime_config)
 
     params = GenerationParams(
         task_type="text2music",
@@ -927,6 +963,8 @@ async def start_radio(request: StartRequest) -> StatusResponse:
         state.vocal_language = lang
         state.running = True
         state.tracks.clear()
+        state.cached_sample_key = None
+        state.cached_sample = None
         if state.generation_task and not state.generation_task.done():
             state.generation_task.cancel()
         state.generation_task = asyncio.create_task(generator_loop())
@@ -979,6 +1017,7 @@ async def update_runtime_config(request: RuntimeConfigRequest) -> dict:
             "guidance_scale",
             "duration_seconds",
             "thinking",
+            "reuse_lm_sample",
         ]:
             value = getattr(request, key)
             if value is not None:

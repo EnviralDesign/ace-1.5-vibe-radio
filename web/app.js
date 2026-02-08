@@ -14,6 +14,7 @@ const els = {
   vocalLanguage: document.getElementById("vocalLanguage"),
   startBtn: document.getElementById("startBtn"),
   stopBtn: document.getElementById("stopBtn"),
+  stopBtnInline: document.getElementById("stopBtnInline"),
   playPauseBtn: document.getElementById("playPauseBtn"),
   skipBtn: document.getElementById("skipBtn"),
   audio: document.getElementById("audio"),
@@ -37,12 +38,16 @@ const els = {
   guidanceScaleInput: document.getElementById("guidanceScaleInput"),
   durationInput: document.getElementById("durationInput"),
   thinkingToggle: document.getElementById("thinkingToggle"),
+  reuseSampleToggle: document.getElementById("reuseSampleToggle"),
   applyConfigBtn: document.getElementById("applyConfigBtn"),
   devConfigState: document.getElementById("devConfigState"),
 };
 
 let state = {
   waitingForTrack: false,
+  radioRunning: false,
+  nextTrackPollTimer: null,
+  nextTrackPollMs: 1200,
   isPlaying: false,
   visualizerActive: false,
   audioContext: null,
@@ -85,6 +90,25 @@ function setStatus(text, kind = "offline") {
 
 function setDevState(text) {
   els.devConfigState.textContent = text;
+}
+
+function setAppMode(isStreaming) {
+  document.body.classList.toggle("is-streaming", Boolean(isStreaming));
+}
+
+function clearTrackPollTimer() {
+  if (state.nextTrackPollTimer) {
+    clearTimeout(state.nextTrackPollTimer);
+    state.nextTrackPollTimer = null;
+  }
+}
+
+function scheduleEnsureTrack(delayMs = 0) {
+  if (!state.radioRunning || state.waitingForTrack || state.nextTrackPollTimer) return;
+  state.nextTrackPollTimer = setTimeout(() => {
+    state.nextTrackPollTimer = null;
+    ensureTrack();
+  }, Math.max(0, delayMs));
 }
 
 function updatePlaybackControls(isPlaying) {
@@ -162,6 +186,7 @@ function applyRuntimePayload(payload) {
   els.guidanceScaleInput.value = cfg.guidance_scale ?? 7.0;
   els.durationInput.value = cfg.duration_seconds ?? 60;
   els.thinkingToggle.checked = Boolean(cfg.thinking);
+  els.reuseSampleToggle.checked = Boolean(cfg.reuse_lm_sample);
 
   setDevState(payload.models_initialized ? "Engine ready" : "Engine reloading...");
 }
@@ -189,6 +214,7 @@ async function applyRuntimeConfig() {
     guidance_scale: Number(els.guidanceScaleInput.value),
     duration_seconds: Number(els.durationInput.value),
     thinking: els.thinkingToggle.checked,
+    reuse_lm_sample: els.reuseSampleToggle.checked,
     restart_engine: true,
   };
 
@@ -235,10 +261,8 @@ function connectWebSocket() {
       } else if (msg.type === "log") {
         appendLog(msg.data);
       } else if (msg.type === "track_ready") {
-        if ((!els.audio.src || els.audio.ended || els.audio.paused) && !state.isPlaying) {
-          if (els.startBtn.textContent === "Stream Live") {
-            ensureTrack();
-          }
+        if (state.radioRunning && (!els.audio.src || els.audio.ended || els.audio.paused || !state.isPlaying)) {
+          scheduleEnsureTrack(0);
         }
       } else if (msg.type === "runtime_config") {
         applyRuntimePayload(msg.data);
@@ -257,6 +281,7 @@ function connectWebSocket() {
 
 function updateUIStatus(data) {
   if (!data) return;
+  state.radioRunning = Boolean(data.running);
 
   els.bufferCount.textContent = data.buffered_tracks;
   els.bufferTargetDisplay.textContent = data.buffer_target;
@@ -271,8 +296,9 @@ function updateUIStatus(data) {
 
   if (!data.running) {
     els.startBtn.disabled = false;
-    els.startBtn.textContent = "Start Stream";
+    els.startBtn.textContent = "Stream Live";
     setStatus(data.is_loading_models ? "LOADING" : "IDLE", "offline");
+    setAppMode(false);
   } else {
     els.startBtn.disabled = true;
     els.startBtn.textContent = "Stream Live";
@@ -281,6 +307,7 @@ function updateUIStatus(data) {
     } else {
       setStatus("ONLINE", "online");
     }
+    setAppMode(true);
   }
 
   setDevState(data.is_loading_models ? "Engine reloading..." : "Engine ready");
@@ -303,9 +330,10 @@ async function startRadio() {
   els.startBtn.disabled = true;
   els.startBtn.textContent = "Starting...";
   appendLog(`Starting stream: "${prompt}"`, "system");
+  setAppMode(true);
 
   try {
-    await fetch("/api/start", {
+    const res = await fetch("/api/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -315,24 +343,32 @@ async function startRadio() {
         vocal_language: state.vocalLanguage,
       }),
     });
+    if (!res.ok) {
+      throw new Error(`Start failed (${res.status})`);
+    }
+    state.radioRunning = true;
   } catch (e) {
     els.startBtn.disabled = false;
-    els.startBtn.textContent = "Start Stream";
+    els.startBtn.textContent = "Stream Live";
+    setAppMode(false);
     appendLog(`Start failed: ${e.message}`);
   }
 }
 
 async function stopRadio() {
   await fetch("/api/stop", { method: "POST" });
+  state.radioRunning = false;
+  clearTrackPollTimer();
   els.audio.pause();
   els.audio.src = "";
   updateTrackInfo(null);
   updatePlaybackControls(false);
+  setAppMode(false);
   appendLog("Stream stopped", "system");
 }
 
 async function ensureTrack() {
-  if (state.waitingForTrack) return;
+  if (state.waitingForTrack || !state.radioRunning) return;
   state.waitingForTrack = true;
 
   try {
@@ -340,10 +376,15 @@ async function ensureTrack() {
     if (!res.ok) return;
     const data = await res.json();
 
-    if (data.status === "buffering") return;
+    if (data.status === "buffering") {
+      state.nextTrackPollMs = Math.min(5000, Math.round(state.nextTrackPollMs * 1.4));
+      scheduleEnsureTrack(state.nextTrackPollMs);
+      return;
+    }
 
     const track = data.track;
     if (track) {
+      state.nextTrackPollMs = 1200;
       appendLog(`Loading: ${track.title} (${track.bpm} BPM)`);
       playTrack(track);
     }
@@ -535,6 +576,7 @@ function resizeCanvas() {
 
 els.startBtn.addEventListener("click", startRadio);
 els.stopBtn.addEventListener("click", stopRadio);
+els.stopBtnInline.addEventListener("click", stopRadio);
 els.modeLyrics.addEventListener("click", () => {
   if (!els.modeLyrics.disabled) setGenerationMode("lyrics");
 });
@@ -549,7 +591,7 @@ els.skipBtn.addEventListener("click", () => {
   els.audio.pause();
   els.audio.currentTime = 0;
   appendLog("Skipping current track", "system");
-  ensureTrack();
+  scheduleEnsureTrack(0);
 });
 
 els.playPauseBtn.addEventListener("click", () => {
@@ -579,7 +621,7 @@ els.applyConfigBtn.addEventListener("click", applyRuntimeConfig);
 els.audio.addEventListener("ended", () => {
   appendLog("Track ended");
   updatePlaybackControls(false);
-  ensureTrack();
+  scheduleEnsureTrack(0);
 });
 
 window.addEventListener("resize", resizeCanvas);
@@ -587,6 +629,7 @@ window.addEventListener("resize", resizeStarfield);
 resizeCanvas();
 initStarfield();
 connectWebSocket();
+setAppMode(false);
 
 const languageOptions = [
   "unknown",

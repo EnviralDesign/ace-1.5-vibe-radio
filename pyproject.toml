@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 ace-radio = "app.cli:serve_main"
 ace-radio-upstream = "app.cli:update_upstream_main"
+ace-radio-download-all-models = "app.cli:download_all_models_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

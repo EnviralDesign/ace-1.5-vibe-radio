@@ -17,7 +17,7 @@
   <div class="orb orb-a"></div>
   <div class="orb orb-b"></div>
 
-  <div class="app">
+  <div class="app" id="appShell">
     <header class="topbar">
       <div class="brand-block">
         <div class="brand-mark" aria-hidden="true"></div>
@@ -32,8 +32,8 @@
       </div>
     </header>
 
-    <main class="radio-layout">
-      <section class="control-column">
+    <main class="radio-layout" id="radioLayout">
+      <section class="control-column" id="composePanel">
         <label class="field">
           <span class="label-text">Prompt</span>
           <textarea id="prompt" rows="4" placeholder="Describe the realm you want to tune into..."></textarea>
@@ -60,7 +60,7 @@
         </div>
 
         <div class="actions">
-          <button id="startBtn" class="btn primary">Start Stream</button>
+          <button id="startBtn" class="btn primary">Stream Live</button>
           <button id="stopBtn" class="btn secondary">Stop</button>
         </div>
 
@@ -80,7 +80,7 @@
         </div>
       </section>
 
-      <section class="player-column">
+      <section class="player-column" id="playerPanel">
         <div class="visualizer-container">
           <canvas id="visualizer"></canvas>
           <div class="track-overlay" id="trackOverlay">
@@ -95,17 +95,20 @@
           </div>
 
           <div class="control-buttons">
-            <button id="playPauseBtn" class="btn round" disabled>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" id="playIcon" />
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" id="pauseIcon" style="display:none" />
-              </svg>
-            </button>
-            <button id="skipBtn" class="btn round" disabled>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-              </svg>
-            </button>
+            <div class="transport-left">
+              <button id="playPauseBtn" class="btn round" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" id="playIcon" />
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" id="pauseIcon" style="display:none" />
+                </svg>
+              </button>
+              <button id="skipBtn" class="btn round" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+              </button>
+            </div>
+            <button id="stopBtnInline" class="btn secondary transport-stop">Stop</button>
           </div>
         </div>
 
@@ -142,14 +145,20 @@
             <select id="lmBackendSelect"></select>
           </label>
 
-          <label class="field compact checkbox-field">
-            <input id="offloadCpuToggle" type="checkbox" />
-            <span>Offload To CPU</span>
+          <label class="field compact">
+            <span class="label-text">Offload LM To CPU</span>
+            <span class="checkbox-field">
+              <input id="offloadCpuToggle" type="checkbox" />
+              <span>Enabled</span>
+            </span>
           </label>
 
-          <label class="field compact checkbox-field">
-            <input id="offloadDitCpuToggle" type="checkbox" />
-            <span>Offload DiT To CPU</span>
+          <label class="field compact">
+            <span class="label-text">Offload DiT To CPU</span>
+            <span class="checkbox-field">
+              <input id="offloadDitCpuToggle" type="checkbox" />
+              <span>Enabled</span>
+            </span>
           </label>
 
           <label class="field compact">
@@ -167,9 +176,20 @@
             <input id="durationInput" type="number" min="10" max="600" step="1" />
           </label>
 
-          <label class="field compact checkbox-field">
-            <input id="thinkingToggle" type="checkbox" />
-            <span>LM Thinking</span>
+          <label class="field compact">
+            <span class="label-text">LM Thinking</span>
+            <span class="checkbox-field">
+              <input id="thinkingToggle" type="checkbox" />
+              <span>Enabled</span>
+            </span>
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">Reuse LM Sample</span>
+            <span class="checkbox-field">
+              <input id="reuseSampleToggle" type="checkbox" />
+              <span>Enabled</span>
+            </span>
           </label>
         </div>
 
