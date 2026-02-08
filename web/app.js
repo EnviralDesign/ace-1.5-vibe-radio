@@ -1,6 +1,8 @@
-// DOM Elements
+const MAX_LOG_LINES = 200;
+
 const els = {
   status: document.getElementById("status"),
+  statusDot: document.getElementById("statusDot"),
   connectionStatus: document.getElementById("connectionStatus"),
   prompt: document.getElementById("prompt"),
   bufferTarget: document.getElementById("bufferTarget"),
@@ -23,9 +25,21 @@ const els = {
   pauseIcon: document.getElementById("pauseIcon"),
   logContainer: document.getElementById("logContainer"),
   clearLogsBtn: document.getElementById("clearLogsBtn"),
+  pauseLogsBtn: document.getElementById("pauseLogsBtn"),
+  presetSelect: document.getElementById("presetSelect"),
+  ditModelSelect: document.getElementById("ditModelSelect"),
+  lmModelSelect: document.getElementById("lmModelSelect"),
+  lmBackendSelect: document.getElementById("lmBackendSelect"),
+  offloadCpuToggle: document.getElementById("offloadCpuToggle"),
+  offloadDitCpuToggle: document.getElementById("offloadDitCpuToggle"),
+  inferenceStepsInput: document.getElementById("inferenceStepsInput"),
+  guidanceScaleInput: document.getElementById("guidanceScaleInput"),
+  durationInput: document.getElementById("durationInput"),
+  thinkingToggle: document.getElementById("thinkingToggle"),
+  applyConfigBtn: document.getElementById("applyConfigBtn"),
+  devConfigState: document.getElementById("devConfigState"),
 };
 
-// State
 let state = {
   waitingForTrack: false,
   isPlaying: false,
@@ -36,23 +50,43 @@ let state = {
   socket: null,
   generationMode: "lyrics",
   vocalLanguage: "unknown",
+  logAutoscroll: true,
+  runtimeConfig: null,
+  runtimeOptions: null,
 };
 
-// --- Update UI ---
+function appendLog(message, type = "") {
+  const line = document.createElement("div");
+  line.className = `log-entry ${type}`.trim();
+  line.textContent = message;
+  els.logContainer.appendChild(line);
 
-function setStatus(text, type = "offline") {
+  while (els.logContainer.children.length > MAX_LOG_LINES) {
+    els.logContainer.removeChild(els.logContainer.firstChild);
+  }
+
+  if (state.logAutoscroll) {
+    els.logContainer.scrollTop = els.logContainer.scrollHeight;
+  }
+}
+
+function setStatus(text, kind = "offline") {
   els.status.textContent = text;
-  els.status.className = "status-badge"; // reset
-  if (type === "online") els.status.classList.add("online");
-
   els.connectionStatus.textContent = text;
+  els.statusDot.classList.remove("live");
+  if (kind === "online") {
+    els.statusDot.classList.add("live");
+  }
+}
+
+function setDevState(text) {
+  els.devConfigState.textContent = text;
 }
 
 function updatePlaybackControls(isPlaying) {
   state.isPlaying = isPlaying;
   els.playIcon.style.display = isPlaying ? "none" : "block";
   els.pauseIcon.style.display = isPlaying ? "block" : "none";
-
   els.playPauseBtn.disabled = false;
   els.skipBtn.disabled = false;
 }
@@ -66,14 +100,12 @@ function setGenerationMode(mode) {
 
 function setVocalLanguage(lang) {
   state.vocalLanguage = lang || "unknown";
-  if (els.vocalLanguage) {
-    els.vocalLanguage.value = state.vocalLanguage;
-  }
+  els.vocalLanguage.value = state.vocalLanguage;
 }
 
 function updateTrackInfo(track) {
   if (!track) {
-    els.trackTitle.textContent = "Waiting for signal...";
+    els.trackTitle.textContent = "Waiting for transmission...";
     els.trackMeta.textContent = "---";
     els.lyrics.textContent = "---";
     els.progressBar.style.width = "0%";
@@ -81,20 +113,105 @@ function updateTrackInfo(track) {
   }
 
   els.trackTitle.textContent = track.title || "Untitled Signal";
-  els.trackMeta.textContent = `${track.mood || 'Unknown'} • ${track.bpm} BPM • ${track.duration_seconds}s`;
+  els.trackMeta.textContent = `${track.mood || "Unknown"} • ${track.bpm} BPM • ${Math.round(track.duration_seconds)}s`;
   els.lyrics.textContent = track.lyrics || "(Instrumental)";
 }
 
-function appendLog(message) {
-  const line = document.createElement("div");
-  line.className = "log-entry";
-  line.textContent = message;
-  els.logContainer.appendChild(line);
-  // Auto scroll
-  els.logContainer.scrollTop = els.logContainer.scrollHeight;
+function fillSelect(selectEl, values, labels = null) {
+  selectEl.innerHTML = "";
+  for (const value of values) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = labels && labels[value] ? labels[value] : value;
+    selectEl.appendChild(opt);
+  }
 }
 
-// --- WebSocket & API Interaction ---
+function applyRuntimePayload(payload) {
+  if (!payload || !payload.config) return;
+
+  state.runtimeConfig = payload.config;
+  state.runtimeOptions = payload.options || state.runtimeOptions;
+
+  const options = payload.options || {};
+  if (options.presets) {
+    const labels = {};
+    const presetValues = [];
+    for (const item of options.presets) {
+      labels[item.id] = item.label;
+      presetValues.push(item.id);
+    }
+    fillSelect(els.presetSelect, presetValues, labels);
+  }
+  if (options.dit_models) fillSelect(els.ditModelSelect, options.dit_models);
+  if (options.lm_models) fillSelect(els.lmModelSelect, options.lm_models);
+  if (options.lm_backends) fillSelect(els.lmBackendSelect, options.lm_backends);
+
+  const cfg = payload.config;
+  if (cfg.preset) els.presetSelect.value = cfg.preset;
+  if (cfg.model_name) els.ditModelSelect.value = cfg.model_name;
+  if (cfg.lm_model_path) els.lmModelSelect.value = cfg.lm_model_path;
+  if (cfg.lm_backend) els.lmBackendSelect.value = cfg.lm_backend;
+  els.offloadCpuToggle.checked = Boolean(cfg.offload_to_cpu);
+  els.offloadDitCpuToggle.checked = Boolean(cfg.offload_dit_to_cpu);
+  els.inferenceStepsInput.value = cfg.inference_steps ?? 8;
+  els.guidanceScaleInput.value = cfg.guidance_scale ?? 7.0;
+  els.durationInput.value = cfg.duration_seconds ?? 120;
+  els.thinkingToggle.checked = Boolean(cfg.thinking);
+
+  setDevState(payload.models_initialized ? "Engine ready" : "Engine reloading...");
+}
+
+async function fetchRuntimeConfig() {
+  try {
+    const res = await fetch("/api/dev/config");
+    if (!res.ok) return;
+    const payload = await res.json();
+    applyRuntimePayload(payload);
+  } catch (e) {
+    appendLog(`Config fetch failed: ${e.message}`);
+  }
+}
+
+async function applyRuntimeConfig() {
+  const body = {
+    preset: els.presetSelect.value,
+    model_name: els.ditModelSelect.value,
+    lm_model_path: els.lmModelSelect.value,
+    lm_backend: els.lmBackendSelect.value,
+    offload_to_cpu: els.offloadCpuToggle.checked,
+    offload_dit_to_cpu: els.offloadDitCpuToggle.checked,
+    inference_steps: Number(els.inferenceStepsInput.value),
+    guidance_scale: Number(els.guidanceScaleInput.value),
+    duration_seconds: Number(els.durationInput.value),
+    thinking: els.thinkingToggle.checked,
+    restart_engine: true,
+  };
+
+  els.applyConfigBtn.disabled = true;
+  setDevState("Applying config...");
+
+  try {
+    const res = await fetch("/api/dev/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || "Failed to apply runtime config");
+    }
+
+    applyRuntimePayload(data);
+    appendLog("Developer config applied. Engine restarting...", "system");
+  } catch (e) {
+    setDevState("Apply failed");
+    appendLog(`Config error: ${e.message}`);
+  } finally {
+    els.applyConfigBtn.disabled = false;
+  }
+}
 
 function connectWebSocket() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -103,8 +220,7 @@ function connectWebSocket() {
   state.socket = new WebSocket(wsUrl);
 
   state.socket.onopen = () => {
-    appendLog(">> System Link Established [SECURE]");
-    // We don't need to manually fetch status, backend sends one on connect.
+    appendLog("System link established", "system");
   };
 
   state.socket.onmessage = (event) => {
@@ -115,90 +231,74 @@ function connectWebSocket() {
       } else if (msg.type === "log") {
         appendLog(msg.data);
       } else if (msg.type === "track_ready") {
-        // Check if we need a track
         if ((!els.audio.src || els.audio.ended || els.audio.paused) && !state.isPlaying) {
-          // Only auto-play if we are expecting stream
-          if (els.startBtn.textContent === "Stream Active") {
+          if (els.startBtn.textContent === "Stream Live") {
             ensureTrack();
           }
         }
+      } else if (msg.type === "runtime_config") {
+        applyRuntimePayload(msg.data);
       }
     } catch (e) {
-      console.error("WS Parse Error", e);
+      console.error("WS parse error", e);
     }
   };
 
   state.socket.onclose = () => {
-    appendLog(">> System Link Lost. Retrying connection...");
+    appendLog("System link lost. Retrying...");
     setStatus("DISCONNECTED", "offline");
     setTimeout(connectWebSocket, 3000);
   };
-
-  state.socket.onerror = (err) => {
-    console.warn("WebSocket Error", err);
-  };
 }
 
-
 function updateUIStatus(data) {
-  if (data) {
-    els.bufferCount.textContent = data.buffered_tracks;
-    els.bufferTargetDisplay.textContent = data.buffer_target;
+  if (!data) return;
 
-    if (data.generation_mode) {
-      setGenerationMode(data.generation_mode);
-    }
-    if (data.vocal_language) {
-      setVocalLanguage(data.vocal_language);
-    }
+  els.bufferCount.textContent = data.buffered_tracks;
+  els.bufferTargetDisplay.textContent = data.buffer_target;
 
-    const disableModeToggle = Boolean(data.running);
-    els.modeLyrics.disabled = disableModeToggle;
-    els.modeInstrumental.disabled = disableModeToggle;
-    if (els.vocalLanguage) {
-      els.vocalLanguage.disabled = disableModeToggle;
-    }
+  if (data.generation_mode) setGenerationMode(data.generation_mode);
+  if (data.vocal_language) setVocalLanguage(data.vocal_language);
 
-    if (!data.running) {
-      els.startBtn.disabled = false;
-      if (els.startBtn.textContent !== "Initialize Stream") {
-        els.startBtn.textContent = "Initialize Stream";
-        els.startBtn.classList.replace("secondary", "primary");
-      }
-      setStatus("IDLE", "offline");
+  const disableModeToggle = Boolean(data.running);
+  els.modeLyrics.disabled = disableModeToggle;
+  els.modeInstrumental.disabled = disableModeToggle;
+  els.vocalLanguage.disabled = disableModeToggle;
+
+  if (!data.running) {
+    els.startBtn.disabled = false;
+    els.startBtn.textContent = "Start Stream";
+    setStatus(data.is_loading_models ? "LOADING" : "IDLE", "offline");
+  } else {
+    els.startBtn.disabled = true;
+    els.startBtn.textContent = "Stream Live";
+    if (data.is_loading_models || data.buffered_tracks === 0) {
+      setStatus("BUFFERING", "offline");
     } else {
-      els.startBtn.disabled = true;
-      els.startBtn.textContent = "Stream Active";
-      els.startBtn.classList.replace("primary", "secondary");
-
-      if (data.buffered_tracks === 0 && !state.isPlaying && !els.audio.src) {
-        setStatus("BUFFERING", "offline");
-      } else {
-        setStatus("ONLINE", "online");
-      }
+      setStatus("ONLINE", "online");
     }
+  }
 
-    // Auto-fetch if stream is active and we have no track
-    if (data.running && (!els.audio.src || els.audio.ended) && !state.waitingForTrack && data.buffered_tracks > 0) {
-      ensureTrack();
-    }
+  setDevState(data.is_loading_models ? "Engine reloading..." : "Engine ready");
+
+  if (data.running && (!els.audio.src || els.audio.ended) && !state.waitingForTrack && data.buffered_tracks > 0) {
+    ensureTrack();
   }
 }
 
 async function startRadio() {
   const prompt = els.prompt.value.trim();
   if (!prompt) {
-    alert("Please enter a Vibe Prompt first.");
+    alert("Enter a transmission prompt first.");
     return;
   }
 
-  // initialize Audio Context on user gesture
   initAudioContext();
   const bufferTarget = parseInt(els.bufferTarget.value, 10) || 2;
 
   els.startBtn.disabled = true;
-  els.startBtn.textContent = "Initializing...";
-  appendLog(`>> Initializing stream: "${prompt}"...`);
+  els.startBtn.textContent = "Starting...";
+  appendLog(`Starting stream: "${prompt}"`, "system");
 
   try {
     await fetch("/api/start", {
@@ -211,23 +311,20 @@ async function startRadio() {
         vocal_language: state.vocalLanguage,
       }),
     });
-    // WS will handle status updates from here
   } catch (e) {
-    console.error(e);
     els.startBtn.disabled = false;
-    els.startBtn.textContent = "Initialize Stream";
-    alert("Failed to start radio.");
+    els.startBtn.textContent = "Start Stream";
+    appendLog(`Start failed: ${e.message}`);
   }
 }
 
 async function stopRadio() {
   await fetch("/api/stop", { method: "POST" });
-
   els.audio.pause();
   els.audio.src = "";
   updateTrackInfo(null);
   updatePlaybackControls(false);
-  appendLog(">> Stream Terminated.");
+  appendLog("Stream stopped", "system");
 }
 
 async function ensureTrack() {
@@ -236,50 +333,33 @@ async function ensureTrack() {
 
   try {
     const res = await fetch("/api/next");
-    if (!res.ok) {
-      // If 400 or empty, just ignore
-      state.waitingForTrack = false;
-      return;
-    }
+    if (!res.ok) return;
     const data = await res.json();
 
-    if (data.status === "buffering") {
-      state.waitingForTrack = false;
-      return;
-    }
+    if (data.status === "buffering") return;
 
     const track = data.track;
     if (track) {
-      appendLog(`>> Loading Signal: ${track.title} [${track.bpm} BPM]`);
+      appendLog(`Loading: ${track.title} (${track.bpm} BPM)`);
       playTrack(track);
     }
-
-  } catch (e) {
-    // console.log("No track available yet");
   } finally {
     state.waitingForTrack = false;
   }
 }
 
 function playTrack(track) {
-  // Set source
   els.audio.src = track.audio_url;
   updateTrackInfo(track);
 
-  // Attempt play
-  const p = els.audio.play();
-  if (p !== undefined) {
-    p.then(() => {
-      updatePlaybackControls(true);
-    }).catch(e => {
-      console.warn("Autoplay blocked or failed", e);
-      appendLog(`>> Autoplay Blocked: ${e.message}. Click Play manually.`);
+  const playPromise = els.audio.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => updatePlaybackControls(true)).catch((e) => {
+      appendLog(`Autoplay blocked: ${e.message}`);
       updatePlaybackControls(false);
     });
   }
 }
-
-// --- Audio & Visualizer ---
 
 function initAudioContext() {
   if (state.audioContext) return;
@@ -301,70 +381,63 @@ function drawVisualizer() {
   if (!state.visualizerActive) return;
   requestAnimationFrame(drawVisualizer);
 
-  const bufferLength = state.analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-  state.analyser.getByteFrequencyData(dataArray);
-
   const ctx = els.canvas.getContext("2d");
   const width = els.canvas.width;
   const height = els.canvas.height;
 
-  // Clear
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // trail effect
+  ctx.fillStyle = "rgba(2, 8, 14, 0.22)";
   ctx.fillRect(0, 0, width, height);
 
-  const barWidth = (width / bufferLength) * 2.5;
-  let barHeight;
+  if (!state.analyser) return;
+
+  const bufferLength = state.analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  state.analyser.getByteFrequencyData(dataArray);
+
+  const barWidth = (width / bufferLength) * 2.1;
   let x = 0;
-
-  for (let i = 0; i < bufferLength; i++) {
-    barHeight = dataArray[i];
-
-    const hue = 240 + (i / bufferLength) * 60; // Blue -> Purple
-    const lightness = 50 + (barHeight / 255) * 40;
-    ctx.fillStyle = `hsl(${hue}, 80%, ${lightness}%)`;
-
+  for (let i = 0; i < bufferLength; i += 1) {
+    const barHeight = dataArray[i] * 1.1;
+    const hue = 175 + (i / bufferLength) * 45;
+    const lightness = 38 + (barHeight / 255) * 30;
+    ctx.fillStyle = `hsl(${hue}, 85%, ${lightness}%)`;
     ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-
     x += barWidth + 1;
   }
 
-  // Progress Bar update (piggyback on visualizer loop)
   if (els.audio.duration) {
     const pct = (els.audio.currentTime / els.audio.duration) * 100;
     els.progressBar.style.width = `${pct}%`;
   }
 }
 
-
-// --- Event Listeners ---
+function resizeCanvas() {
+  els.canvas.width = els.canvas.offsetWidth;
+  els.canvas.height = els.canvas.offsetHeight;
+}
 
 els.startBtn.addEventListener("click", startRadio);
 els.stopBtn.addEventListener("click", stopRadio);
 els.modeLyrics.addEventListener("click", () => {
-  if (els.modeLyrics.disabled) return;
-  setGenerationMode("lyrics");
+  if (!els.modeLyrics.disabled) setGenerationMode("lyrics");
 });
 els.modeInstrumental.addEventListener("click", () => {
-  if (els.modeInstrumental.disabled) return;
-  setGenerationMode("instrumental");
+  if (!els.modeInstrumental.disabled) setGenerationMode("instrumental");
 });
 els.vocalLanguage.addEventListener("change", (event) => {
-  if (els.vocalLanguage.disabled) return;
-  setVocalLanguage(event.target.value);
+  if (!els.vocalLanguage.disabled) setVocalLanguage(event.target.value);
 });
 
 els.skipBtn.addEventListener("click", () => {
   els.audio.pause();
   els.audio.currentTime = 0;
-  appendLog(">> Skipping Signal...");
+  appendLog("Skipping current track", "system");
   ensureTrack();
 });
 
 els.playPauseBtn.addEventListener("click", () => {
   if (els.audio.paused) {
-    // Resume context if needed
-    if (state.audioContext && state.audioContext.state === 'suspended') {
+    if (state.audioContext && state.audioContext.state === "suspended") {
       state.audioContext.resume();
     }
     els.audio.play();
@@ -376,28 +449,26 @@ els.playPauseBtn.addEventListener("click", () => {
 });
 
 els.clearLogsBtn.addEventListener("click", () => {
-  els.logContainer.innerHTML = '';
+  els.logContainer.innerHTML = "";
 });
 
-// Audio Element Events
+els.pauseLogsBtn.addEventListener("click", () => {
+  state.logAutoscroll = !state.logAutoscroll;
+  els.pauseLogsBtn.textContent = state.logAutoscroll ? "Pause Scroll" : "Resume Scroll";
+});
+
+els.applyConfigBtn.addEventListener("click", applyRuntimeConfig);
+
 els.audio.addEventListener("ended", () => {
-  appendLog(">> Signal Ended.");
+  appendLog("Track ended");
   updatePlaybackControls(false);
-  ensureTrack(); // Immediately fetch next
+  ensureTrack();
 });
 
-// Initialize canvas size
-function resizeCanvas() {
-  els.canvas.width = els.canvas.offsetWidth;
-  els.canvas.height = els.canvas.offsetHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // init
-
-// Connect socket
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 connectWebSocket();
 
-// Populate language picker
 const languageOptions = [
   "unknown",
   "ar", "az", "bg", "bn", "ca", "cs", "da", "de", "el", "en",
@@ -407,13 +478,11 @@ const languageOptions = [
   "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "yue", "zh",
 ];
 
-if (els.vocalLanguage) {
-  els.vocalLanguage.innerHTML = "";
-  for (const lang of languageOptions) {
-    const opt = document.createElement("option");
-    opt.value = lang;
-    opt.textContent = lang === "unknown" ? "Auto (any language)" : lang;
-    els.vocalLanguage.appendChild(opt);
-  }
-  setVocalLanguage(state.vocalLanguage);
-}
+fillSelect(
+  els.vocalLanguage,
+  languageOptions,
+  { unknown: "Auto (any language)" },
+);
+setVocalLanguage("unknown");
+
+fetchRuntimeConfig();

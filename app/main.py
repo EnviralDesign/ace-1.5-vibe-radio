@@ -5,6 +5,7 @@ import logging
 import random
 import time
 import json
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,14 @@ from pydantic import BaseModel, Field
 # Set environment variables before importing torch/transformers
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+# Prefer upstream ACE-Step from submodule when available.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+UPSTREAM_ACE_DIR = PROJECT_ROOT / "vendor" / "ace-step"
+if (UPSTREAM_ACE_DIR / "acestep").exists():
+    upstream_path = str(UPSTREAM_ACE_DIR)
+    if upstream_path not in sys.path:
+        sys.path.insert(0, upstream_path)
+
 import torch
 from acestep.handler import AceStepHandler
 from acestep.llm_inference import LLMHandler
@@ -30,6 +39,53 @@ from acestep.inference import generate_music, GenerationParams, GenerationConfig
 from acestep.constants import VALID_LANGUAGES
 from acestep.model_downloader import ensure_lm_model
 from acestep.gpu_config import set_global_gpu_config, GPUConfig
+
+DIT_MODEL_OPTIONS = [
+    "acestep-v15-turbo",
+    "acestep-v15-turbo-shift1",
+    "acestep-v15-turbo-shift3",
+    "acestep-v15-turbo-continuous",
+    "acestep-v15-sft",
+    "acestep-v15-base",
+]
+
+LM_MODEL_OPTIONS = [
+    "acestep-5Hz-lm-0.6B",
+    "acestep-5Hz-lm-1.7B",
+    "acestep-5Hz-lm-4B",
+]
+
+LM_BACKEND_OPTIONS = ["pt", "vllm"]
+
+PRESET_OPTIONS: Dict[str, Dict[str, Any]] = {
+    "balanced": {
+        "label": "Balanced",
+        "model_name": "acestep-v15-turbo",
+        "lm_model_path": "acestep-5Hz-lm-1.7B",
+        "inference_steps": 8,
+        "guidance_scale": 7.0,
+        "duration_seconds": 120.0,
+        "thinking": True,
+    },
+    "quality": {
+        "label": "Quality",
+        "model_name": "acestep-v15-sft",
+        "lm_model_path": "acestep-5Hz-lm-4B",
+        "inference_steps": 24,
+        "guidance_scale": 7.0,
+        "duration_seconds": 120.0,
+        "thinking": True,
+    },
+    "fast": {
+        "label": "Fast",
+        "model_name": "acestep-v15-turbo",
+        "lm_model_path": "acestep-5Hz-lm-0.6B",
+        "inference_steps": 8,
+        "guidance_scale": 6.5,
+        "duration_seconds": 90.0,
+        "thinking": True,
+    },
+}
 
 # Load .env if present (best-effort, no override)
 def _load_env_file() -> None:
@@ -350,6 +406,7 @@ class RadioState:
     tracks: Deque[Track] = field(default_factory=deque)
     generation_task: Optional[asyncio.Task] = None
     initialization_task: Optional[asyncio.Task] = None
+    runtime_config: Dict[str, Any] = field(default_factory=dict)
 
 state = RadioState()
 state_lock = asyncio.Lock()
@@ -374,6 +431,106 @@ class TrackResponse(BaseModel):
     status: str
     track: Optional[dict] = None
 
+
+class RuntimeConfigRequest(BaseModel):
+    preset: Optional[str] = None
+    model_name: Optional[str] = None
+    lm_model_path: Optional[str] = None
+    lm_backend: Optional[str] = None
+    offload_to_cpu: Optional[bool] = None
+    offload_dit_to_cpu: Optional[bool] = None
+    inference_steps: Optional[int] = Field(default=None, ge=1, le=100)
+    guidance_scale: Optional[float] = Field(default=None, ge=0.0, le=30.0)
+    duration_seconds: Optional[float] = Field(default=None, ge=10.0, le=600.0)
+    thinking: Optional[bool] = None
+    restart_engine: bool = True
+
+
+def _normalize_runtime_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(config)
+
+    preset = str(normalized.get("preset") or "balanced").strip().lower()
+    if preset not in PRESET_OPTIONS:
+        preset = "balanced"
+    normalized["preset"] = preset
+
+    model_name = str(normalized.get("model_name") or "acestep-v15-turbo").strip()
+    if not model_name:
+        model_name = "acestep-v15-turbo"
+    normalized["model_name"] = model_name
+
+    lm_model_path = str(normalized.get("lm_model_path") or "acestep-5Hz-lm-1.7B").strip()
+    if not lm_model_path:
+        lm_model_path = "acestep-5Hz-lm-1.7B"
+    normalized["lm_model_path"] = lm_model_path
+
+    lm_backend = str(normalized.get("lm_backend") or "pt").strip().lower()
+    if lm_backend not in LM_BACKEND_OPTIONS:
+        lm_backend = "pt"
+    normalized["lm_backend"] = lm_backend
+
+    normalized["offload_to_cpu"] = bool(normalized.get("offload_to_cpu", False))
+    normalized["offload_dit_to_cpu"] = bool(normalized.get("offload_dit_to_cpu", False))
+
+    try:
+        inference_steps = int(normalized.get("inference_steps", 8))
+    except Exception:
+        inference_steps = 8
+    normalized["inference_steps"] = max(1, min(100, inference_steps))
+
+    try:
+        guidance_scale = float(normalized.get("guidance_scale", 7.0))
+    except Exception:
+        guidance_scale = 7.0
+    normalized["guidance_scale"] = max(0.0, min(30.0, guidance_scale))
+
+    try:
+        duration_seconds = float(normalized.get("duration_seconds", 120.0))
+    except Exception:
+        duration_seconds = 120.0
+    normalized["duration_seconds"] = max(10.0, min(600.0, duration_seconds))
+
+    normalized["thinking"] = bool(normalized.get("thinking", True))
+    return normalized
+
+
+def _build_runtime_config_from_env() -> Dict[str, Any]:
+    env_model = os.environ.get("ACESTEP_MODEL_NAME", "").strip()
+    env_lm = os.environ.get("ACESTEP_LM_MODEL_PATH", "").strip()
+    env_backend = os.environ.get("ACE_RADIO_LM_BACKEND", os.environ.get("ACESTEP_LM_BACKEND", "pt")).strip().lower()
+
+    config = dict(PRESET_OPTIONS["balanced"])
+    config["preset"] = "balanced"
+    if env_model:
+        config["model_name"] = env_model
+    if env_lm:
+        config["lm_model_path"] = env_lm
+    if env_backend:
+        config["lm_backend"] = env_backend
+    config["offload_to_cpu"] = str(os.environ.get("ACE_RADIO_OFFLOAD_TO_CPU", "0")).lower() in {"1", "true", "yes"}
+    config["offload_dit_to_cpu"] = str(os.environ.get("ACE_RADIO_OFFLOAD_DIT_TO_CPU", "0")).lower() in {"1", "true", "yes"}
+    config["inference_steps"] = int(os.environ.get("ACE_RADIO_INFERENCE_STEPS", config["inference_steps"]))
+    config["guidance_scale"] = float(os.environ.get("ACE_RADIO_GUIDANCE_SCALE", config["guidance_scale"]))
+    config["duration_seconds"] = float(os.environ.get("ACE_RADIO_DURATION_SECONDS", config["duration_seconds"]))
+    config["thinking"] = str(os.environ.get("ACE_RADIO_THINKING", "1")).lower() not in {"0", "false", "no"}
+    return _normalize_runtime_config(config)
+
+
+def _runtime_config_payload(config: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "config": dict(config),
+        "options": {
+            "presets": [
+                {"id": preset_id, "label": preset_data["label"]}
+                for preset_id, preset_data in PRESET_OPTIONS.items()
+            ],
+            "dit_models": DIT_MODEL_OPTIONS,
+            "lm_models": LM_MODEL_OPTIONS,
+            "lm_backends": LM_BACKEND_OPTIONS,
+        },
+        "models_initialized": models_initialized,
+    }
+
 async def broadcast_status():
     """Helper to send status update to all clients."""
     st = await get_status()
@@ -389,12 +546,15 @@ async def initialize_models():
     logger.info("Initializing ACE-Step models...")
     
     # Run in thread to avoid blocking loop
-    def _init_sync():
+    async with state_lock:
+        runtime_cfg = dict(state.runtime_config)
+
+    def _init_sync(config: Dict[str, Any]):
         d_handler = AceStepHandler()
         l_handler = LLMHandler()
         
         project_root = os.getcwd()
-        model_name = os.environ.get("ACESTEP_MODEL_NAME", "acestep-v15-turbo")
+        model_name = config["model_name"]
         
         # Initialize DiT
         msg, success = d_handler.initialize_service(
@@ -402,7 +562,9 @@ async def initialize_models():
             config_path=model_name,
             device="auto",
             use_flash_attention=False,
-            compile_model=False
+            compile_model=False,
+            offload_to_cpu=config["offload_to_cpu"],
+            offload_dit_to_cpu=config["offload_dit_to_cpu"],
         )
         logger.info(f"DiT Init: {msg}")
         if not success:
@@ -410,9 +572,7 @@ async def initialize_models():
             
         # Initialize LLM (5Hz)
         logger.info("Initializing LLM...")
-        lm_model_path = os.environ.get("ACESTEP_LM_MODEL_PATH")
-        if lm_model_path:
-            lm_model_path = lm_model_path.strip()
+        lm_model_path = config["lm_model_path"]
         prefer_source = os.environ.get("ACESTEP_DOWNLOAD_SOURCE")
         if prefer_source:
             prefer_source = prefer_source.strip().lower()
@@ -426,7 +586,7 @@ async def initialize_models():
             )
         except Exception as e:
             logger.warning(f"LM auto-download failed: {e}")
-        lm_backend = os.environ.get("ACE_RADIO_LM_BACKEND", os.environ.get("ACESTEP_LM_BACKEND", "pt")).strip().lower()
+        lm_backend = config["lm_backend"]
         if lm_backend not in {"pt", "vllm"}:
             logger.warning(f"Unknown LM backend '{lm_backend}', falling back to 'pt'")
             lm_backend = "pt"
@@ -443,7 +603,8 @@ async def initialize_models():
         lm_msg, lm_success = l_handler.initialize(
             checkpoint_dir=checkpoint_dir,
             lm_model_path=lm_model_path or None,
-            backend=lm_backend
+            backend=lm_backend,
+            offload_to_cpu=config["offload_to_cpu"],
         )
         logger.info(f"LLM Init: {lm_msg}")
         if not lm_success:
@@ -452,19 +613,40 @@ async def initialize_models():
         return d_handler, l_handler
 
     try:
-        dit_handler, llm_handler = await asyncio.to_thread(_init_sync)
+        dit_handler, llm_handler = await asyncio.to_thread(_init_sync, runtime_cfg)
         models_initialized = True
         logger.info("Models initialized successfully.")
         logger.info("\n" + "="*40 + "\n🚀  Server is ready\n" + "="*40)
         ui_log("Models ready • stream can start")
+        await manager.broadcast({"type": "runtime_config", "data": _runtime_config_payload(runtime_cfg)})
         await broadcast_status()
     except Exception as e:
         logger.error(f"Model initialization failed: {e}")
         ui_log(f"Model init failed • {e}")
+        await manager.broadcast({"type": "runtime_config", "data": _runtime_config_payload(runtime_cfg)})
+
+
+async def reload_models(reason: str = "Config updated") -> None:
+    global models_initialized, dit_handler, llm_handler
+
+    models_initialized = False
+    dit_handler = None
+    llm_handler = None
+    ui_log(f"Reloading models • {reason}")
+
+    async with state_lock:
+        state.tracks.clear()
+        if state.initialization_task and not state.initialization_task.done():
+            state.initialization_task.cancel()
+        state.initialization_task = asyncio.create_task(initialize_models())
+
+    await broadcast_status()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start initialization task
+    async with state_lock:
+        state.runtime_config = _build_runtime_config_from_env()
     state.initialization_task = asyncio.create_task(initialize_models())
     log_task = asyncio.create_task(log_broadcaster())
     yield
@@ -559,6 +741,9 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
         sample_lyrics = "[Instrumental]"
 
     effective_language = user_language or sample_language or "unknown"
+    async with state_lock:
+        runtime_cfg = dict(state.runtime_config)
+
     params = GenerationParams(
         task_type="text2music",
         caption=sample_caption,
@@ -568,10 +753,10 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
         bpm=sample_bpm,
         keyscale=sample_keyscale,
         timesignature=sample_timesignature,
-        thinking=True,
-        duration=120.0, # fixed 2 minutes for consistent performance
-        inference_steps=8, # Turbo model is fast
-        guidance_scale=7.0,
+        thinking=runtime_cfg["thinking"],
+        duration=runtime_cfg["duration_seconds"],
+        inference_steps=runtime_cfg["inference_steps"],
+        guidance_scale=runtime_cfg["guidance_scale"],
     )
     
     config = GenerationConfig(
@@ -619,8 +804,10 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
 
     audio_path = new_path
     params_used = audio_data.get("params", {})
-    extra_outputs = result.extra_outputs or {}
-    extra = extra_outputs.get("lm_metadata", {})
+    extra_outputs = result.extra_outputs if isinstance(result.extra_outputs, dict) else {}
+    extra = extra_outputs.get("lm_metadata") or {}
+    if not isinstance(extra, dict):
+        extra = {}
     time_costs = extra_outputs.get("time_costs", {}) if extra_outputs else {}
     for line in _format_time_costs(time_costs):
         ui_log(line)
@@ -705,6 +892,9 @@ async def websocket_endpoint(websocket: WebSocket):
         # Send initial status
         st = await get_status()
         await websocket.send_json({"type": "status", "data": st.dict()})
+        async with state_lock:
+            config_snapshot = dict(state.runtime_config)
+        await websocket.send_json({"type": "runtime_config", "data": _runtime_config_payload(config_snapshot)})
         
         while True:
             # Keep alive
@@ -757,6 +947,56 @@ async def stop_radio() -> StatusResponse:
     ui_log("Stream stopped")
     await broadcast_status()
     return await get_status()
+
+
+@app.get("/api/dev/config")
+async def get_runtime_config() -> dict:
+    async with state_lock:
+        config_snapshot = dict(state.runtime_config)
+    return _runtime_config_payload(config_snapshot)
+
+
+@app.post("/api/dev/config")
+async def update_runtime_config(request: RuntimeConfigRequest) -> dict:
+    async with state_lock:
+        current = dict(state.runtime_config)
+
+        if request.preset:
+            preset = request.preset.strip().lower()
+            if preset not in PRESET_OPTIONS:
+                raise HTTPException(status_code=400, detail=f"Unknown preset '{request.preset}'")
+            preset_values = dict(PRESET_OPTIONS[preset])
+            preset_values["preset"] = preset
+            current.update(preset_values)
+
+        for key in [
+            "model_name",
+            "lm_model_path",
+            "lm_backend",
+            "offload_to_cpu",
+            "offload_dit_to_cpu",
+            "inference_steps",
+            "guidance_scale",
+            "duration_seconds",
+            "thinking",
+        ]:
+            value = getattr(request, key)
+            if value is not None:
+                current[key] = value
+
+        state.runtime_config = _normalize_runtime_config(current)
+        config_snapshot = dict(state.runtime_config)
+
+    await manager.broadcast({"type": "runtime_config", "data": _runtime_config_payload(config_snapshot)})
+
+    if request.restart_engine:
+        await reload_models(reason="Developer config changed")
+
+    return {
+        "ok": True,
+        "restarted": bool(request.restart_engine),
+        **_runtime_config_payload(config_snapshot),
+    }
 
 @app.get("/api/status", response_model=StatusResponse)
 async def get_status() -> StatusResponse:

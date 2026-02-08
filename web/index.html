@@ -5,131 +5,194 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ace 1.5 Vibe Radio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 
 <body>
+  <div class="sky-grid"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+
   <div class="app">
-    <header>
-      <div class="brand">
-        <div class="logo-icon">📡</div>
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"></div>
         <div>
           <h1>Ace 1.5 Vibe Radio</h1>
-          <p class="subtitle">Generative Neural Stream</p>
+          <p class="subtitle">Cosmic Neural Infinite Realm</p>
         </div>
       </div>
-      <div class="status-badge" id="status">OFFLINE</div>
+      <div class="status-shell">
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-badge" id="status">OFFLINE</div>
+      </div>
     </header>
 
-    <main>
-      <div class="top-row">
-        <!-- Left Column: Controls & Input -->
-        <section class="console-panel">
-          <div class="panel-header">
-            <h2>Signal Parameters</h2>
-          </div>
+    <main class="radio-layout">
+      <section class="control-column">
+        <label class="field">
+          <span class="label-text">Transmission Prompt</span>
+          <textarea id="prompt" rows="4" placeholder="Describe the realm you want to tune into..."></textarea>
+        </label>
 
-          <div class="control-group">
-            <label class="field">
-              <span class="label-text">Vibe Prompt</span>
-              <textarea id="prompt" rows="3"
-                placeholder="Describe the sound... e.g., 'Neon synthwave vapor dreams with heavy reverb'"></textarea>
-            </label>
+        <div class="field-row two-col">
+          <label class="field compact">
+            <span class="label-text">Buffer Depth</span>
+            <input id="bufferTarget" type="number" min="1" max="6" value="2" />
+          </label>
 
-            <label class="field row">
-              <span class="label-text">Buffer Depth</span>
-              <input id="bufferTarget" type="number" min="1" max="5" value="2" />
-            </label>
-
-            <label class="field row">
-              <span class="label-text">Vocal Mode</span>
-              <div class="mode-toggle" role="group" aria-label="Vocal Mode">
-                <button id="modeLyrics" type="button" class="toggle-btn active">Lyrics</button>
-                <button id="modeInstrumental" type="button" class="toggle-btn">Instrumental</button>
-              </div>
-            </label>
-
-            <label class="field row">
-              <span class="label-text">Vocal Language</span>
-              <select id="vocalLanguage"></select>
-            </label>
-          </div>
-
-          <div class="actions">
-            <button id="startBtn" class="btn primary">Initialize Stream</button>
-            <button id="stopBtn" class="btn secondary">Terminate</button>
-          </div>
-
-          <div class="stats-box">
-            <div class="stat-row">
-              <span>Buffered Tracks</span>
-              <span id="bufferCount" class="mono">0</span>
-            </div>
-            <div class="stat-row">
-              <span>Target</span>
-              <span id="bufferTargetDisplay" class="mono">2</span>
-            </div>
-            <div class="stat-row">
-              <span>Status</span>
-              <span id="connectionStatus" class="mono">Disconnected</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Right Column: Player & Visuals -->
-        <section class="player-panel">
-          <div class="visualizer-container">
-            <canvas id="visualizer"></canvas>
-            <div class="track-overlay" id="trackOverlay">
-              <h2 id="trackTitle">Waiting for signal...</h2>
-              <p id="trackMeta" class="meta-tag">---</p>
-            </div>
-          </div>
-
-          <div class="playback-controls">
-            <div class="progress-container" id="progressContainer">
-              <div class="progress-bar" id="progressBar"></div>
-            </div>
-
-            <div class="control-buttons">
-              <button id="playPauseBtn" class="btn round" disabled>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z" id="playIcon" />
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" id="pauseIcon" style="display:none" />
-                </svg>
-              </button>
-              <button id="skipBtn" class="btn round" disabled>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="lyrics-panel">
-            <div class="panel-header">
-              <h3>Neural Lyrics</h3>
-            </div>
-            <div id="lyrics" class="lyrics-content">---</div>
-          </div>
-        </section>
-      </div>
-
-      <!-- System Logs -->
-      <section class="logs-panel">
-        <div class="panel-header">
-          <h3>System Logs</h3>
-          <button id="clearLogsBtn" class="btn small">Clear</button>
+          <label class="field compact">
+            <span class="label-text">Vocal Language</span>
+            <select id="vocalLanguage"></select>
+          </label>
         </div>
-        <div id="logContainer" class="log-container">
-          <div class="log-entry system">Connecting to satellite link...</div>
+
+        <div class="field">
+          <span class="label-text">Vocal Mode</span>
+          <div class="mode-toggle" role="group" aria-label="Vocal Mode">
+            <button id="modeLyrics" type="button" class="toggle-btn active">Lyrics</button>
+            <button id="modeInstrumental" type="button" class="toggle-btn">Instrumental</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="startBtn" class="btn primary">Start Stream</button>
+          <button id="stopBtn" class="btn secondary">Stop</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span>Buffered</span>
+            <strong id="bufferCount">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Target</span>
+            <strong id="bufferTargetDisplay">2</strong>
+          </div>
+          <div class="stat-card">
+            <span>Link</span>
+            <strong id="connectionStatus">Disconnected</strong>
+          </div>
         </div>
       </section>
 
+      <section class="player-column">
+        <div class="visualizer-container">
+          <canvas id="visualizer"></canvas>
+          <div class="track-overlay" id="trackOverlay">
+            <h2 id="trackTitle">Waiting for transmission...</h2>
+            <p id="trackMeta" class="meta-tag">---</p>
+          </div>
+        </div>
+
+        <div class="playback-controls">
+          <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+
+          <div class="control-buttons">
+            <button id="playPauseBtn" class="btn round" disabled>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" id="playIcon" />
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" id="pauseIcon" style="display:none" />
+              </svg>
+            </button>
+            <button id="skipBtn" class="btn round" disabled>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="lyrics-panel">
+          <div class="panel-header">
+            <h3>Signal Text</h3>
+          </div>
+          <div id="lyrics" class="lyrics-content">---</div>
+        </div>
+      </section>
     </main>
+
+    <details class="dev-panel" id="devPanel">
+      <summary>Developer</summary>
+      <div class="dev-body">
+        <div class="dev-grid">
+          <label class="field compact">
+            <span class="label-text">Preset</span>
+            <select id="presetSelect"></select>
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">DiT Model</span>
+            <select id="ditModelSelect"></select>
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">LM Model</span>
+            <select id="lmModelSelect"></select>
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">LM Backend</span>
+            <select id="lmBackendSelect"></select>
+          </label>
+
+          <label class="field compact checkbox-field">
+            <input id="offloadCpuToggle" type="checkbox" />
+            <span>Offload To CPU</span>
+          </label>
+
+          <label class="field compact checkbox-field">
+            <input id="offloadDitCpuToggle" type="checkbox" />
+            <span>Offload DiT To CPU</span>
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">Inference Steps</span>
+            <input id="inferenceStepsInput" type="number" min="1" max="100" />
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">Guidance Scale</span>
+            <input id="guidanceScaleInput" type="number" min="0" max="30" step="0.1" />
+          </label>
+
+          <label class="field compact">
+            <span class="label-text">Duration (sec)</span>
+            <input id="durationInput" type="number" min="10" max="600" step="1" />
+          </label>
+
+          <label class="field compact checkbox-field">
+            <input id="thinkingToggle" type="checkbox" />
+            <span>LM Thinking</span>
+          </label>
+        </div>
+
+        <div class="dev-actions">
+          <button id="applyConfigBtn" class="btn tertiary">Apply + Restart Engine</button>
+          <span id="devConfigState" class="dev-state">Ready</span>
+        </div>
+
+        <div class="logs-shell">
+          <div class="panel-header">
+            <h3>Logs</h3>
+            <div class="log-actions">
+              <button id="pauseLogsBtn" class="btn small">Pause Scroll</button>
+              <button id="clearLogsBtn" class="btn small">Clear</button>
+            </div>
+          </div>
+          <div id="logContainer" class="log-container">
+            <div class="log-entry system">Awaiting stream uplink...</div>
+          </div>
+        </div>
+      </div>
+    </details>
   </div>
 
-  <!-- Hidden Audio Element -->
   <audio id="audio" crossorigin="anonymous"></audio>
   <script src="/static/app.js"></script>
 </body>

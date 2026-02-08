@@ -4,6 +4,8 @@
 
 A generative music radio station powered by ACE-Step 1.5. This application generates infinite, non-repeating music streams based on text prompts using a locally running DiT (Diffusion Transformer) and 5Hz Language Model.
 
+This repo wraps upstream ACE-Step via git submodule at `vendor/ace-step` so upstream can be updated without forking core inference code.
+
 ## Features
 
 - **Text-to-Music**: Generate high-fidelity audio from text descriptions.
@@ -20,7 +22,13 @@ A generative music radio station powered by ACE-Step 1.5. This application gener
 ## Installation
 
 1.  Clone the repository.
-2.  Install dependencies:
+2.  Initialize submodules:
+
+    ```bash
+    git submodule update --init --recursive
+    ```
+
+3.  Install dependencies:
 
     ```bash
     uv sync
@@ -40,6 +48,17 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 6109
 
 - **Audio Output**: Generated files are stored in `./tmp` by default. You can change this by setting the `ACE_RADIO_AUDIO_DIR` environment variable.
 - **Model Storage**: Models are downloaded to `./checkpoints`.
+
+## Updating Upstream
+
+To update ACE-Step while keeping wrapper code isolated:
+
+```bash
+git -C vendor/ace-step fetch
+git -C vendor/ace-step checkout <upstream-commit-or-tag>
+git add vendor/ace-step
+git commit -m "chore: update ace-step submodule"
+```
 
 ## License
 
