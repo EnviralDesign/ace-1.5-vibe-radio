@@ -9,6 +9,10 @@
   --accent: #26c6da;
   --accent-warm: #f4a340;
   --accent-ok: #38d39f;
+  --space-1: 0.45rem;
+  --space-2: 0.7rem;
+  --space-3: 1rem;
+  --h-control: 46px;
 }
 
 * {
@@ -26,9 +30,20 @@ body {
   overflow-x: hidden;
 }
 
+#starscape {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
+}
+
 .sky-grid {
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   opacity: 0.22;
   background-image: linear-gradient(rgba(77, 159, 198, 0.08) 1px, transparent 1px),
@@ -39,6 +54,7 @@ body {
 
 .orb {
   position: fixed;
+  z-index: 0;
   width: 26rem;
   height: 26rem;
   border-radius: 999px;
@@ -76,10 +92,10 @@ body {
   z-index: 1;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: var(--space-3);
 }
 
 .topbar {
@@ -88,8 +104,8 @@ body {
   align-items: center;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
-  padding: 0.95rem 1rem;
+  border-radius: 1.15rem;
+  padding: 0.82rem 0.95rem;
   backdrop-filter: blur(10px);
   animation: fadeUp 520ms ease;
 }
@@ -108,7 +124,7 @@ body {
 .brand-block {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.68rem;
 }
 
 .brand-mark {
@@ -122,14 +138,14 @@ body {
 
 h1 {
   margin: 0;
-  font-size: 1.36rem;
+  font-size: 1.28rem;
   letter-spacing: 0.01em;
 }
 
 .subtitle {
-  margin: 0.12rem 0 0;
+  margin: 0.08rem 0 0;
   color: var(--text-dim);
-  font-size: 0.86rem;
+  font-size: 0.8rem;
 }
 
 .status-shell {
@@ -153,8 +169,8 @@ h1 {
 .status-badge {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.36rem 0.62rem;
-  font-size: 0.75rem;
+  padding: 0.32rem 0.6rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--text-dim);
@@ -163,7 +179,7 @@ h1 {
 .radio-layout {
   display: grid;
   grid-template-columns: 320px 1fr;
-  gap: 1rem;
+  gap: var(--space-3);
   align-items: start;
 }
 
@@ -178,35 +194,37 @@ h1 {
 
 .control-column,
 .player-column {
-  padding: 1rem;
+  padding: var(--space-3);
   animation: fadeUp 520ms ease;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: var(--space-1);
 }
 
 .field + .field,
 .field + .field-row,
 .field-row + .field,
+.field + .actions,
 .field-row + .actions,
 .actions + .stats-grid {
-  margin-top: 0.8rem;
+  margin-top: var(--space-2);
 }
 
 .field-row.two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.65rem;
+  gap: var(--space-2);
 }
 
 .label-text {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
+  letter-spacing: 0.11em;
+  color: rgba(168, 206, 226, 0.74);
+  font-weight: 500;
 }
 
 textarea,
@@ -218,12 +236,19 @@ select {
   background: rgba(2, 13, 22, 0.65);
   color: var(--text);
   font: inherit;
-  padding: 0.7rem 0.78rem;
+  padding: 0 0.78rem;
+  height: var(--h-control);
+  line-height: 1;
+  font-size: 0.9rem;
 }
 
 textarea {
   resize: vertical;
-  min-height: 88px;
+  min-height: 98px;
+  height: auto;
+  padding: 0.72rem 0.78rem;
+  line-height: 1.35;
+  font-size: 0.86rem;
 }
 
 textarea:focus,
@@ -236,7 +261,7 @@ select:focus {
 
 .mode-toggle {
   display: flex;
-  gap: 0.45rem;
+  gap: var(--space-1);
 }
 
 .toggle-btn {
@@ -245,8 +270,11 @@ select:focus {
   border-radius: 0.7rem;
   color: var(--text-dim);
   background: rgba(2, 13, 22, 0.65);
-  padding: 0.58rem 0.5rem;
+  padding: 0 0.5rem;
+  height: var(--h-control);
   cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .toggle-btn.active {
@@ -258,16 +286,18 @@ select:focus {
 .actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
+  gap: var(--space-2);
 }
 
 .btn {
   border: none;
   border-radius: 0.8rem;
-  padding: 0.65rem 0.75rem;
+  padding: 0 0.75rem;
+  height: var(--h-control);
   color: var(--text);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.86rem;
   cursor: pointer;
 }
 
@@ -293,28 +323,30 @@ select:focus {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .stat-card {
   border: 1px solid rgba(140, 204, 234, 0.2);
   border-radius: 0.8rem;
   background: rgba(2, 11, 19, 0.65);
-  padding: 0.56rem;
+  min-height: var(--h-control);
+  padding: 0.52rem 0.58rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  justify-content: center;
+  gap: 0.2rem;
 }
 
 .stat-card span {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .stat-card strong {
-  font-size: 0.85rem;
+  font-size: 0.74rem;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 
@@ -327,7 +359,7 @@ select:focus {
   background: radial-gradient(circle at 40% 30%, rgba(19, 174, 193, 0.25), transparent 50%), #020810;
 }
 
-canvas {
+#visualizer {
   width: 100%;
   height: 100%;
   display: block;
@@ -338,23 +370,23 @@ canvas {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 1rem;
+  padding: 0.82rem;
   background: linear-gradient(to top, rgba(1, 7, 12, 0.94), transparent);
 }
 
 #trackTitle {
   margin: 0;
-  font-size: 1.28rem;
+  font-size: 1.2rem;
 }
 
 .meta-tag {
-  margin: 0.2rem 0 0;
+  margin: 0.14rem 0 0;
   color: #a6d9ef;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
 .playback-controls {
-  margin-top: 0.8rem;
+  margin-top: var(--space-2);
 }
 
 .progress-container {
@@ -372,9 +404,9 @@ canvas {
 }
 
 .control-buttons {
-  margin-top: 0.7rem;
+  margin-top: var(--space-2);
   display: flex;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .btn.round {
@@ -385,11 +417,11 @@ canvas {
 }
 
 .lyrics-panel {
-  margin-top: 0.8rem;
+  margin-top: var(--space-2);
   border-radius: 0.9rem;
   border: 1px solid rgba(144, 210, 240, 0.2);
   background: rgba(2, 11, 19, 0.65);
-  padding: 0.74rem;
+  padding: 0.66rem 0.72rem;
 }
 
 .panel-header {
@@ -400,19 +432,20 @@ canvas {
 
 .panel-header h3 {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-dim);
 }
 
 .lyrics-content {
-  margin-top: 0.55rem;
+  margin-top: var(--space-1);
   max-height: 180px;
   overflow: auto;
   white-space: pre-wrap;
-  line-height: 1.42;
+  line-height: 1.4;
   color: #d5eef9;
+  font-size: 0.92rem;
 }
 
 .dev-panel {
@@ -423,8 +456,8 @@ canvas {
 .dev-panel summary {
   list-style: none;
   cursor: pointer;
-  padding: 0.9rem 1rem;
-  font-size: 0.84rem;
+  padding: 0.76rem 0.92rem;
+  font-size: 0.74rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: #afe4fc;
@@ -436,24 +469,24 @@ canvas {
 }
 
 .dev-body {
-  padding: 0.95rem 1rem 1rem;
+  padding: 0.85rem 0.92rem 0.92rem;
 }
 
 .dev-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .checkbox-field {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
-  min-height: 43px;
+  min-height: var(--h-control);
   border-radius: 0.8rem;
   border: 1px solid rgba(151, 207, 238, 0.25);
   background: rgba(2, 13, 22, 0.65);
-  padding: 0.62rem 0.75rem;
+  padding: 0.56rem 0.75rem;
 }
 
 .checkbox-field input {
@@ -464,7 +497,7 @@ canvas {
 }
 
 .dev-actions {
-  margin-top: 0.72rem;
+  margin-top: var(--space-2);
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -477,7 +510,7 @@ canvas {
 }
 
 .logs-shell {
-  margin-top: 0.8rem;
+  margin-top: var(--space-2);
 }
 
 .log-actions {
@@ -486,23 +519,24 @@ canvas {
 }
 
 .btn.small {
-  padding: 0.42rem 0.58rem;
+  padding: 0 0.58rem;
+  height: 32px;
   font-size: 0.72rem;
 }
 
 .log-container {
-  margin-top: 0.5rem;
+  margin-top: var(--space-1);
   max-height: 180px;
   overflow: auto;
   border: 1px solid rgba(141, 204, 235, 0.2);
   border-radius: 0.8rem;
   background: rgba(2, 10, 17, 0.78);
-  padding: 0.45rem;
+  padding: 0.42rem;
 }
 
 .log-entry {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: #baddec;
   line-height: 1.45;
   padding: 0.16rem 0.2rem;
@@ -524,7 +558,7 @@ canvas {
 
 @media (max-width: 620px) {
   .app {
-    padding: 0.8rem;
+    padding: 0.75rem;
   }
 
   .topbar {

@@ -12,6 +12,7 @@
 </head>
 
 <body>
+  <canvas id="starscape" aria-hidden="true"></canvas>
   <div class="sky-grid"></div>
   <div class="orb orb-a"></div>
   <div class="orb orb-b"></div>
@@ -34,24 +35,24 @@
     <main class="radio-layout">
       <section class="control-column">
         <label class="field">
-          <span class="label-text">Transmission Prompt</span>
+          <span class="label-text">Prompt</span>
           <textarea id="prompt" rows="4" placeholder="Describe the realm you want to tune into..."></textarea>
         </label>
 
         <div class="field-row two-col">
           <label class="field compact">
-            <span class="label-text">Buffer Depth</span>
+            <span class="label-text">Buffer</span>
             <input id="bufferTarget" type="number" min="1" max="6" value="2" />
           </label>
 
           <label class="field compact">
-            <span class="label-text">Vocal Language</span>
+            <span class="label-text">Language</span>
             <select id="vocalLanguage"></select>
           </label>
         </div>
 
         <div class="field">
-          <span class="label-text">Vocal Mode</span>
+          <span class="label-text">Mode</span>
           <div class="mode-toggle" role="group" aria-label="Vocal Mode">
             <button id="modeLyrics" type="button" class="toggle-btn active">Lyrics</button>
             <button id="modeInstrumental" type="button" class="toggle-btn">Instrumental</button>

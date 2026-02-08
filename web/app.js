@@ -1,6 +1,7 @@
 const MAX_LOG_LINES = 200;
 
 const els = {
+  starscape: document.getElementById("starscape"),
   status: document.getElementById("status"),
   statusDot: document.getElementById("statusDot"),
   connectionStatus: document.getElementById("connectionStatus"),
@@ -53,6 +54,9 @@ let state = {
   logAutoscroll: true,
   runtimeConfig: null,
   runtimeOptions: null,
+  stars: [],
+  starCtx: null,
+  starFrame: null,
 };
 
 function appendLog(message, type = "") {
@@ -156,7 +160,7 @@ function applyRuntimePayload(payload) {
   els.offloadDitCpuToggle.checked = Boolean(cfg.offload_dit_to_cpu);
   els.inferenceStepsInput.value = cfg.inference_steps ?? 8;
   els.guidanceScaleInput.value = cfg.guidance_scale ?? 7.0;
-  els.durationInput.value = cfg.duration_seconds ?? 120;
+  els.durationInput.value = cfg.duration_seconds ?? 60;
   els.thinkingToggle.checked = Boolean(cfg.thinking);
 
   setDevState(payload.models_initialized ? "Engine ready" : "Engine reloading...");
@@ -361,6 +365,119 @@ function playTrack(track) {
   }
 }
 
+function resetStar(width, height) {
+  const side = Math.floor(Math.random() * 4);
+  const depth = 0.12 + Math.random() * 0.9;
+  const speed = 0.2 + Math.random() * 1.2;
+  const twinkle = 0.2 + Math.random() * 0.8;
+  const hue = 185 + Math.random() * 40;
+  const size = 0.5 + Math.random() * 1.8;
+  const drift = (Math.random() - 0.5) * 0.3;
+  let x = Math.random() * width;
+  let y = Math.random() * height;
+
+  if (side === 0) {
+    x = Math.random() * width;
+    y = -8;
+  } else if (side === 1) {
+    x = width + 8;
+    y = Math.random() * height;
+  } else if (side === 2) {
+    x = Math.random() * width;
+    y = height + 8;
+  } else {
+    x = -8;
+    y = Math.random() * height;
+  }
+
+  return { x, y, depth, speed, twinkle, hue, size, drift };
+}
+
+function initStarfield() {
+  if (!els.starscape) return;
+  const ctx = els.starscape.getContext("2d");
+  if (!ctx) return;
+  state.starCtx = ctx;
+  resizeStarfield();
+  if (!state.starFrame) {
+    animateStarfield();
+  }
+}
+
+function resizeStarfield() {
+  if (!els.starscape || !state.starCtx) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  els.starscape.width = Math.floor(width * dpr);
+  els.starscape.height = Math.floor(height * dpr);
+  state.starCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const starCount = Math.max(100, Math.min(280, Math.floor((width * height) / 9000)));
+  state.stars = Array.from({ length: starCount }, () => resetStar(width, height));
+}
+
+function getAudioEnergy() {
+  if (!state.analyser) return 0;
+  const bins = state.analyser.frequencyBinCount;
+  if (!bins) return 0;
+  const data = new Uint8Array(bins);
+  state.analyser.getByteFrequencyData(data);
+
+  let sum = 0;
+  const sampleStep = Math.max(1, Math.floor(bins / 48));
+  for (let i = 0; i < bins; i += sampleStep) {
+    sum += data[i];
+  }
+  const avg = sum / Math.ceil(bins / sampleStep);
+  return Math.min(1, avg / 255);
+}
+
+function animateStarfield() {
+  const ctx = state.starCtx;
+  if (!ctx || !els.starscape) return;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const cx = width * 0.5;
+  const cy = height * 0.5;
+  const energy = getAudioEnergy();
+  const baseVelocity = state.isPlaying ? 0.95 : 0.45;
+  const velocity = baseVelocity + energy * 1.6;
+
+  ctx.clearRect(0, 0, width, height);
+
+  for (const star of state.stars) {
+    const dx = (star.x - cx) * (0.00028 * velocity * (1.2 - star.depth));
+    const dy = (star.y - cy) * (0.00028 * velocity * (1.2 - star.depth));
+    star.x += dx + star.drift * velocity;
+    star.y += dy + velocity * star.speed * (0.4 + (1 - star.depth));
+
+    if (star.x < -20 || star.x > width + 20 || star.y < -20 || star.y > height + 20) {
+      Object.assign(star, resetStar(width, height));
+      continue;
+    }
+
+    const flicker = 0.4 + 0.6 * Math.abs(Math.sin((performance.now() * 0.0012) * star.twinkle));
+    const alpha = 0.16 + (1 - star.depth) * 0.62 * flicker;
+    const r = star.size * (1.1 - star.depth);
+    ctx.fillStyle = `hsla(${star.hue}, 90%, 78%, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (velocity > 1.15 && star.depth < 0.5) {
+      ctx.strokeStyle = `hsla(${star.hue}, 100%, 80%, ${alpha * 0.55})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(star.x, star.y);
+      ctx.lineTo(star.x - dx * 14, star.y - dy * 14);
+      ctx.stroke();
+    }
+  }
+
+  state.starFrame = requestAnimationFrame(animateStarfield);
+}
+
 function initAudioContext() {
   if (state.audioContext) return;
 
@@ -466,7 +583,9 @@ els.audio.addEventListener("ended", () => {
 });
 
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", resizeStarfield);
 resizeCanvas();
+initStarfield();
 connectWebSocket();
 
 const languageOptions = [

@@ -64,7 +64,7 @@ PRESET_OPTIONS: Dict[str, Dict[str, Any]] = {
         "lm_model_path": "acestep-5Hz-lm-1.7B",
         "inference_steps": 8,
         "guidance_scale": 7.0,
-        "duration_seconds": 120.0,
+        "duration_seconds": 60.0,
         "thinking": True,
     },
     "quality": {
@@ -73,7 +73,7 @@ PRESET_OPTIONS: Dict[str, Dict[str, Any]] = {
         "lm_model_path": "acestep-5Hz-lm-4B",
         "inference_steps": 24,
         "guidance_scale": 7.0,
-        "duration_seconds": 120.0,
+        "duration_seconds": 60.0,
         "thinking": True,
     },
     "fast": {
@@ -82,7 +82,7 @@ PRESET_OPTIONS: Dict[str, Dict[str, Any]] = {
         "lm_model_path": "acestep-5Hz-lm-0.6B",
         "inference_steps": 8,
         "guidance_scale": 6.5,
-        "duration_seconds": 90.0,
+        "duration_seconds": 60.0,
         "thinking": True,
     },
 }
@@ -485,9 +485,9 @@ def _normalize_runtime_config(config: Dict[str, Any]) -> Dict[str, Any]:
     normalized["guidance_scale"] = max(0.0, min(30.0, guidance_scale))
 
     try:
-        duration_seconds = float(normalized.get("duration_seconds", 120.0))
+        duration_seconds = float(normalized.get("duration_seconds", 60.0))
     except Exception:
-        duration_seconds = 120.0
+        duration_seconds = 60.0
     normalized["duration_seconds"] = max(10.0, min(600.0, duration_seconds))
 
     normalized["thinking"] = bool(normalized.get("thinking", True))
@@ -748,7 +748,7 @@ async def compose_track(prompt: str, generation_mode: str, vocal_language: str) 
         task_type="text2music",
         caption=sample_caption,
         lyrics=sample_lyrics,
-        instrumental=_is_instrumental(sample_lyrics),
+        instrumental=(mode == "instrumental") or _is_instrumental(sample_lyrics),
         vocal_language=effective_language,
         bpm=sample_bpm,
         keyscale=sample_keyscale,
